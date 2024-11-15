@@ -61,6 +61,8 @@ public class GameWindow {
     final Image[] images = new Image[symbols.length];
     final GameEngine gameEngine = GameEngine.getInstance();
 
+    private final GameEngine clientEngine = new GameEngine();
+
     // Support data communication with the network
     private Socket socket;
     private DataInputStream din;
@@ -146,6 +148,7 @@ public class GameWindow {
         canvas.setOnKeyPressed(event -> {
             try {
                 String direction = event.getCode().toString();
+                this.clientEngine.moveMerge(direction);
                 dout.writeUTF(direction);
                 dout.flush();
             } catch (IOException e) {
@@ -239,7 +242,6 @@ public class GameWindow {
     public void setName(String name) throws IOException {
         nameLabel.setText(name);
         sendMessageToServer("name:" + name);
-//        gameEngine.setPlayerName(name);
     }
 
     private void updateGameState(String gameState) {
@@ -279,7 +281,7 @@ public class GameWindow {
                 } else if (serverResponse.startsWith("Currently, there are")) {
                     showDynamicYesNoDialog("Update on Players", serverResponse);
                 } else if (serverResponse.startsWith("PersonalScore")) {
-                    Platform.runLater(() -> updatePersonalScore(serverResponse));
+                    Platform.runLater(() -> updatePersonalScore());
                 } else if (serverResponse.startsWith("Game Over")) {
                     this.isGameOver = true;
                 } else {
@@ -291,30 +293,11 @@ public class GameWindow {
         }
     }
 
-    public void updatePersonalScore(String scoreData) {
-        String[] parts = scoreData.split(",");
-        if (parts[0].equals("PersonalScore")) {
-            for (int i = 1; i < parts.length; i++) {
-                switch (parts[i]) {
-                    case "score":
-                        int score = Integer.parseInt(parts[++i]);
-                        scoreLabel.setText("Score: " + score);
-                        break;
-                    case "level":
-                        int level = Integer.parseInt(parts[++i]);
-                        levelLabel.setText("Level: " + level);
-                        break;
-                    case "combo":
-                        int combo = Integer.parseInt(parts[++i]);
-                        comboLabel.setText("Combo: " + combo);
-                        break;
-                    case "total":
-                        int totalMoves = Integer.parseInt(parts[++ i]);
-                        moveCountLabel.setText("# of Moves: " + totalMoves);
-                }
-            }
-        }
-
+    public void updatePersonalScore() {
+        scoreLabel.setText("Score: " + this.clientEngine.getScore());
+        levelLabel.setText("Level: " + this.clientEngine.getLevel());
+        comboLabel.setText("Combo: " + this.clientEngine.getCombo());
+        moveCountLabel.setText("# of Moves: " + this.clientEngine.getTotalMoveCount());
         render();
     }
 

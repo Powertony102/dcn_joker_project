@@ -1,3 +1,5 @@
+import org.ietf.jgss.GSSManager;
+
 import java.lang.reflect.Array;
 import java.net.Socket;
 import java.io.IOException;
@@ -5,6 +7,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 class ClientHandler implements Runnable {
     private final Socket socket;
@@ -130,16 +133,8 @@ class ClientHandler implements Runnable {
         return result;
     }
 
-    public void sendPersonalScore(String gameState) throws IOException {
-        String pscore = "PersonalScore,";
-        updateGameState(gameState);
-        pscore += "score," + this.clientEngine.getScore() + ",";
-        pscore += "level," + this.clientEngine.getLevel() + ",";
-        pscore += "combo," + this.clientEngine.getCombo() + ",";
-        pscore += "total," + this.clientEngine.getTotalMoveCount();
-        System.out.println(pscore);
-        out.writeUTF(pscore);
+    public void sendPersonalScore() throws IOException {
+        out.writeUTF("PersonalScore");
         out.flush();
-//        return pscore;
     }
 }

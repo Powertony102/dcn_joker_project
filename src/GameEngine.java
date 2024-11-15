@@ -172,18 +172,18 @@ public class GameEngine {
     }
 
     public int getScore() {
-        return this.score;
+        return score;
     }
 
     public int getLevel() {
-        return this.level;
+        return level;
     }
 
     public int getCombo() {
-        return this.combo;
+        return combo;
     }
 
     public  int getTotalMoveCount() {
-        return this.totalMoveCount;
+        return totalMoveCount;
     }
 }
