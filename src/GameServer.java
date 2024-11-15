@@ -11,6 +11,9 @@ import java.util.Queue;
 public class GameServer {
     private static final int PORT = 39995;
     private final List<ClientHandler> clients = new ArrayList<>();
+
+
+
     private final Queue<ClientHandler> waitingClients = new LinkedList<>();
     private int currentPlayer = 0;
 
@@ -118,7 +121,7 @@ public class GameServer {
 
     private void notifyFirstPlayerOfCurrentPlayers() throws IOException {
         if (!clients.isEmpty()) {
-            ClientHandler firstPlayer = clients.get(0); // 第一个加入的玩家
+            ClientHandler firstPlayer = clients.getFirst(); // 第一个加入的玩家
             int playerCount = clients.size();
             firstPlayer.sendMessage("Currently, there are " + playerCount + " players in the game.");
         }
@@ -142,8 +145,7 @@ public class GameServer {
         }
     }
 
-    public void broadcastGameState() throws IOException {
-//        System.out.println("broadcasting");
+    public String generateGameState() {
         StringBuilder stateBuilder = new StringBuilder();
         stateBuilder.append("board,");
 
@@ -153,13 +155,17 @@ public class GameServer {
             }
         }
 
-        String gameState = stateBuilder.toString();
+        return stateBuilder.toString();
+    }
+
+    public void broadcastGameState() throws IOException {
+        String gameState = generateGameState();
         for (ClientHandler client : clients) {
             client.sendGameState(gameState);
         }
 
         // 因为只有当前操作的玩家需要更新分数板，所以只在 client 中找到 currentPlayer
-        clients.get(currentPlayer).sendPersonalScore();
+        clients.get(currentPlayer).sendPersonalScore(gameState);
     }
 
 

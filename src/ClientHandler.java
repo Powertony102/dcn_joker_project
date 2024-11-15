@@ -12,22 +12,16 @@ class ClientHandler implements Runnable {
     private DataInputStream in;
     private DataOutputStream out;
     private int remainingMoves = 4;
-    private int totalMoves = 0;
+
+    private final GameEngine clientEngine;
 
     private String playerName = "";
 
-    protected ArrayList <Integer> result = new ArrayList<>();
-
-    private int score = 0, preScore = 0;
-    private int level = 1, preLevel = 1;
-    private int combo = 0, preCombo = 0;
 
     public ClientHandler(Socket socket, GameServer server) {
         this.socket = socket;
         this.server = server;
-        result.add(this.score);
-        result.add(this.level);
-        result.add(this.combo);
+        this.clientEngine = new GameEngine();
 
         try {
             in = new DataInputStream(socket.getInputStream());
@@ -105,7 +99,6 @@ class ClientHandler implements Runnable {
 
     public void decreaseMoves() {
         -- this.remainingMoves;
-        ++ this.totalMoves;
     }
 
     public int getRemainingMoves() {
@@ -116,41 +109,37 @@ class ClientHandler implements Runnable {
         this.remainingMoves = remainingMoves;
     }
 
-    private void updateScoreBoard() {
-        this.preScore = this.score;
-        this.preLevel = this.level;
-        this.preCombo = this.combo;
-        this.score = this.server.gameEngine.getScore();
-        this.level = this.server.gameEngine.getLevel();
-        this.combo = this.server.gameEngine.getCombo();
+    private void updateGameState(String gameState) {
+        String[] parts = gameState.split(",");
+        int index = 0;
 
-        this.result.set(0, this.result.get(0) + (this.score - this.preScore));
-        this.result.set(1, this.result.get(1) + (this.level - this.preLevel));
-        if (this.combo == 0)
-            this.result.set(2, this.preCombo);
-        else
-            this.result.set(2, this.result.get(2) + (this.combo - this.preCombo));
-//        System.out.println();
+        if (parts[0].equals("board")) {
+            index++;
+            for (int r = 0; r < GameEngine.SIZE; r++) {
+                for (int c = 0; c < GameEngine.SIZE; c++) {
+                    this.clientEngine.board[r * GameEngine.SIZE + c] = Integer.parseInt(parts[index++]);
+                }
+            }
+        }
     }
 
     public ArrayList<Integer> getResult() {
-        return this.result;
+        ArrayList<Integer> result = new ArrayList<>();
+        result.add(this.clientEngine.getScore());
+        result.add(this.clientEngine.getLevel());
+        return result;
     }
 
-    public String sendPersonalScore() throws IOException {
+    public void sendPersonalScore(String gameState) throws IOException {
         String pscore = "PersonalScore,";
-        try {
-            updateScoreBoard();
-            pscore += "score," + result.get(0) + ",";
-            pscore += "level," + result.get(1) + ",";
-            pscore += "combo," + result.get(2) + ",";
-            pscore += "total," + this.totalMoves;
-            System.out.println(pscore);
-            out.writeUTF(pscore);
-            out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return pscore;
+        updateGameState(gameState);
+        pscore += "score," + this.clientEngine.getScore() + ",";
+        pscore += "level," + this.clientEngine.getLevel() + ",";
+        pscore += "combo," + this.clientEngine.getCombo() + ",";
+        pscore += "total," + this.clientEngine.getTotalMoveCount();
+        System.out.println(pscore);
+        out.writeUTF(pscore);
+        out.flush();
+//        return pscore;
     }
 }
