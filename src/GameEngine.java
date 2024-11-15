@@ -19,7 +19,7 @@ public class GameEngine {
 
     private final Map<String, Runnable> actionMap = new HashMap<>();
 
-    private GameEngine() {
+    protected GameEngine() {
         // define a hash map to contain the links from the actions to the corresponding methods
         actionMap.put("UP", this::moveUp);
         actionMap.put("DOWN", this::moveDown);
@@ -181,5 +181,9 @@ public class GameEngine {
 
     public int getCombo() {
         return this.combo;
+    }
+
+    public  int getTotalMoveCount() {
+        return this.totalMoveCount;
     }
 }
