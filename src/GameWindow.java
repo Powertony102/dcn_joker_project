@@ -266,8 +266,6 @@ public class GameWindow {
                 String serverResponse = din.readUTF();
                 if (serverResponse.startsWith("You are the first player")) {
                     showDecisionDialog("Start Game", "Do you want to start the game now, or wait for more players?");
-                } else if (serverResponse.startsWith("The game is full")) {
-                    showYesNoDialogForWaiting("Wait for Next Game", "The game is full. Would you like to wait for the next game or leave?");
                 } else if (serverResponse.startsWith("It's your turn")) {
                     Platform.runLater(() -> {
                         messageLabel.setText("Your turn! Make 4 moves.");
@@ -278,10 +276,10 @@ public class GameWindow {
                     });
                 } else if (serverResponse.equals("Game is starting now!")) {
                     showAlert("Game Start", "The game is starting with all players. Get ready!");
-                } else if (serverResponse.startsWith("Currently, there are")) {
+                } else if (serverResponse.startsWith("Currently")) {
                     showDynamicYesNoDialog("Update on Players", serverResponse);
                 } else if (serverResponse.startsWith("PersonalScore")) {
-                    Platform.runLater(() -> updatePersonalScore());
+                    Platform.runLater(this::updatePersonalScore);
                 } else if (serverResponse.startsWith("Game Over")) {
                     this.isGameOver = true;
                 } else {
@@ -308,42 +306,14 @@ public class GameWindow {
             alert.setHeaderText(null);
             alert.setContentText(message);
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
+            ButtonType yesButton = new ButtonType("Wait");
+            ButtonType noButton = new ButtonType("Start");
             alert.getButtonTypes().setAll(yesButton, noButton);
 
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == yesButton) {
                 try {
                     sendMessageToServer("start_game");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
-
-    private void showYesNoDialogForWaiting(String title, String message) throws IOException {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(AlertType.CONFIRMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
-            alert.getButtonTypes().setAll(yesButton, noButton);
-
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == yesButton) {
-                try {
-                    sendMessageToServer("wait_next_game");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                try {
-                    sendMessageToServer("leave");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

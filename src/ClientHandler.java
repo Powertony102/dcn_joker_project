@@ -11,20 +11,28 @@ import java.util.Arrays;
 
 class ClientHandler implements Runnable {
     private final Socket socket;
-    private final GameServer server;
+    private final GameProcess process;
     private DataInputStream in;
     private DataOutputStream out;
     private int remainingMoves = 4;
+    private int gameID = 0;
 
     private final GameEngine clientEngine;
+    private MessageDealer dealer;
 
     private String playerName = "";
 
 
-    public ClientHandler(Socket socket, GameServer server) {
+    public ClientHandler(Socket socket, GameProcess process, int gameID) {
         this.socket = socket;
-        this.server = server;
+        this.process = process;
+        this.gameID = gameID;
         this.clientEngine = new GameEngine();
+        this.dealer = new MessageDealer();
+
+        if (process == null) {
+            throw new IllegalArgumentException("GameProcess cannot be null.");
+        }
 
         try {
             in = new DataInputStream(socket.getInputStream());
@@ -34,28 +42,38 @@ class ClientHandler implements Runnable {
         }
     }
 
+    private String getClientResponse() throws IOException {
+        String clientResponse = in.readUTF();
+        String prefix = "<" + Integer.toString(gameID) + ">";
+        if (!clientResponse.startsWith(prefix)) {
+            return "Pass";
+        }
+        return dealer.messageClean(clientResponse);
+    }
+
     @Override
     public void run() {
         try {
-            sendGameState(server.getGameState());
+            sendGameState(process.getGameState());
 
             while (true) {
-                String clientResponse = in.readUTF();
+                String clientResponse = getClientResponse();
+                if (clientResponse.equals("Pass"))
+                    continue;
                 System.out.println("Received message from client: " + clientResponse);
 
                 if (clientResponse.equals("start_game")) {
-                    server.startGame();
+                    firstPlayerDecision(true);
                 } else if (clientResponse.equals("wait_for_others")) {
                     System.out.println("The first player decided to wait for others to join.");
-                } else if (clientResponse.equals("wait_next_game")) {
-                    server.addToWaitingQueue(this);
+                    firstPlayerDecision(false);
                 } else if (clientResponse.equals("leave")) {
                     socket.close();
                     return;
                 } else if (clientResponse.startsWith("name:")) {
                     setPlayerName(clientResponse.substring(5));
                 } else {
-                    server.handleClientMove(clientResponse, this);
+                    process.handleClientMove(clientResponse, this);
                 }
             }
         } catch (IOException e) {
@@ -66,7 +84,15 @@ class ClientHandler implements Runnable {
             throw new RuntimeException(e);
         } finally {
             try {
-                socket.close();
+                if (in != null) {
+                    in.close();
+                }
+                if (out != null) {
+                    out.close();
+                }
+                if (socket != null) {
+                    socket.close();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -82,6 +108,7 @@ class ClientHandler implements Runnable {
     }
 
     public void sendMessage(String message) throws IOException {
+        message = dealer.messageWithId(message, this.gameID);
         try {
             out.flush();
             out.writeUTF(message);
@@ -100,30 +127,16 @@ class ClientHandler implements Runnable {
         }
     }
 
-    public void decreaseMoves() {
+    public synchronized void decreaseMoves() {
         -- this.remainingMoves;
     }
 
-    public int getRemainingMoves() {
+    public synchronized int getRemainingMoves() {
         return this.remainingMoves;
     }
 
-    public void setRemainingMoves(int remainingMoves) {
+    public synchronized void setRemainingMoves(int remainingMoves) {
         this.remainingMoves = remainingMoves;
-    }
-
-    private void updateGameState(String gameState) {
-        String[] parts = gameState.split(",");
-        int index = 0;
-
-        if (parts[0].equals("board")) {
-            index++;
-            for (int r = 0; r < GameEngine.SIZE; r++) {
-                for (int c = 0; c < GameEngine.SIZE; c++) {
-                    this.clientEngine.board[r * GameEngine.SIZE + c] = Integer.parseInt(parts[index++]);
-                }
-            }
-        }
     }
 
     public ArrayList<Integer> getResult() {
@@ -136,5 +149,20 @@ class ClientHandler implements Runnable {
     public void sendPersonalScore() throws IOException {
         out.writeUTF("PersonalScore");
         out.flush();
+    }
+
+    public boolean firstPlayerDecision(String message) throws IOException {
+        sendMessage(message);
+
+        String clientResponse = getClientResponse();
+        if (clientResponse.equals("wait_for_others")) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public boolean firstPlayerDecision(boolean result) {
+        return result;
     }
 }
