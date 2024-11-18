@@ -1,13 +1,9 @@
-import org.ietf.jgss.GSSManager;
-
-import java.lang.reflect.Array;
 import java.net.Socket;
 import java.io.IOException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 class ClientHandler implements Runnable {
     private final Socket socket;
@@ -19,6 +15,11 @@ class ClientHandler implements Runnable {
     private final GameEngine clientEngine;
 
     private String playerName = "";
+
+    private int score = 0;
+    private int level = 1;
+    private int combo = 0;
+    private int totalMoves = 0;
 
 
     public ClientHandler(Socket socket, GameServer server) {
@@ -54,6 +55,8 @@ class ClientHandler implements Runnable {
                     return;
                 } else if (clientResponse.startsWith("name:")) {
                     setPlayerName(clientResponse.substring(5));
+                } else if (clientResponse.startsWith("score")) {
+                    updatePersonalScore(clientResponse);
                 } else {
                     server.handleClientMove(clientResponse, this);
                 }
@@ -112,24 +115,18 @@ class ClientHandler implements Runnable {
         this.remainingMoves = remainingMoves;
     }
 
-    private void updateGameState(String gameState) {
-        String[] parts = gameState.split(",");
-        int index = 0;
-
-        if (parts[0].equals("board")) {
-            index++;
-            for (int r = 0; r < GameEngine.SIZE; r++) {
-                for (int c = 0; c < GameEngine.SIZE; c++) {
-                    this.clientEngine.board[r * GameEngine.SIZE + c] = Integer.parseInt(parts[index++]);
-                }
-            }
-        }
+    private void updatePersonalScore(String pscore) {
+        String[] parts = pscore.split(",");
+        this.score = Integer.parseInt(parts[1]);
+        this.level = Integer.parseInt(parts[2]);
+        this.combo = Integer.parseInt(parts[3]);
+        this.totalMoves = Integer.parseInt(parts[4]);
     }
 
     public ArrayList<Integer> getResult() {
         ArrayList<Integer> result = new ArrayList<>();
-        result.add(this.clientEngine.getScore());
-        result.add(this.clientEngine.getLevel());
+        result.add(this.score);
+        result.add(this.level);
         return result;
     }
 

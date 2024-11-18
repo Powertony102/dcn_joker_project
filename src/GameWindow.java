@@ -281,7 +281,13 @@ public class GameWindow {
                 } else if (serverResponse.startsWith("Currently, there are")) {
                     showDynamicYesNoDialog("Update on Players", serverResponse);
                 } else if (serverResponse.startsWith("PersonalScore")) {
-                    Platform.runLater(() -> updatePersonalScore());
+                    Platform.runLater(() -> {
+                        try {
+                            updatePersonalScore();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 } else if (serverResponse.startsWith("Game Over")) {
                     this.isGameOver = true;
                 } else {
@@ -293,11 +299,16 @@ public class GameWindow {
         }
     }
 
-    public void updatePersonalScore() {
-        scoreLabel.setText("Score: " + this.clientEngine.getScore());
-        levelLabel.setText("Level: " + this.clientEngine.getLevel());
-        comboLabel.setText("Combo: " + this.clientEngine.getCombo());
-        moveCountLabel.setText("# of Moves: " + this.clientEngine.getTotalMoveCount());
+    public void updatePersonalScore() throws IOException {
+        int score = this.clientEngine.getScore();
+        int level = this.clientEngine.getLevel();
+        int combo = this.clientEngine.getCombo();
+        int totalMoves = this.clientEngine.getTotalMoveCount();
+        scoreLabel.setText("Score: " + score);
+        levelLabel.setText("Level: " + level);
+        comboLabel.setText("Combo: " + combo);
+        moveCountLabel.setText("# of Moves: " + totalMoves);
+        sendMessageToServer("scoreboard," + score + "," + level + "," + combo + "," + totalMoves);
         render();
     }
 
