@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="scoreServerController">
+    <top>
+        <Label text="Battle Joker Score Server" style="-fx-font-size: 20px;" BorderPane.alignment="CENTER"/>
+    </top>
+    <center>
+        <HBox alignment="CENTER" spacing="20"  >
+            <Button fx:id="startServerBtn" text="Start Server" onAction="#handleStartServer"/>
+            <Button fx:id="stopServerBtn" text="Stop Server" onAction="#handleStopServer" disable="true"/>
+        </HBox>
+    </center>
+</BorderPane>

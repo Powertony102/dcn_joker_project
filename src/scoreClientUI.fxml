@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<?import javafx.scene.control.Button?>
+<VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="600.0" style="-fx-background-color: #dddd;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="scoreClientController">
+    <Label alignment="CENTER" text="Score Board" textAlignment="CENTER">
+        <font>
+            <Font size="28.0" />
+        </font>
+    </Label>
+    <TableView fx:id="scoreTable" prefHeight="450.0" prefWidth="600.0">
+        <columns>
+            <TableColumn fx:id="nameColumn" text="Name" prefWidth="150.0"/>
+            <TableColumn fx:id="scoreColumn" text="Score" prefWidth="100.0"/>
+            <TableColumn fx:id="levelColumn" text="Level" prefWidth="100.0"/>
+            <TableColumn fx:id="timeColumn" text="Time" prefWidth="250.0"/>
+        </columns>
+    </TableView>
+    <VBox alignment="CENTER" spacing="10.0">
+        <Button fx:id="connectBtn" text="Connect" onAction="#handleConnect"/>
+        <Button fx:id="disconnectBtn" text="Disconnect" onAction="#handleDisconnect"/>
+    </VBox>
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+</VBox>

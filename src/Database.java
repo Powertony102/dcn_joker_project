@@ -39,39 +39,75 @@ public class Database {
     }
 
     public void putScore(String name, int score, int level) {
-        String sql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, datetime('now'))";
+        String checkSql = "SELECT COUNT(*) FROM scores WHERE name = ? AND score = ? AND level = ?";
+        String insertSql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, datetime('now'))";
+
         try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setInt(2, score);
-            pstmt.setInt(3, level);
-            pstmt.executeUpdate();
-            System.out.println("Data successfully inserted for: " + name);
+             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+             PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+
+            // 检查是否已经存在相同的记录
+            checkStmt.setString(1, name);
+            checkStmt.setInt(2, score);
+            checkStmt.setInt(3, level);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next() && rs.getInt(1) == 0) {
+                // 如果没有相同记录，则插入
+                insertStmt.setString(1, name);
+                insertStmt.setInt(2, score);
+                insertStmt.setInt(3, level);
+                insertStmt.executeUpdate();
+                System.out.println("Data successfully inserted for: " + name);
+            } else {
+                System.out.println("Duplicate record found. Insertion skipped for: " + name);
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
     public void putScore(String name, int score, int level, String time) {
-        String sql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, ?)";
+        String checkSql = "SELECT COUNT(*) FROM scores WHERE name = ? AND score = ? AND level = ? AND time = ?";
+        String insertSql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, ?)";
+
         try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setInt(2, score);
-            pstmt.setInt(3, level);
-            pstmt.setString(4, time);
-            pstmt.executeUpdate();
-            System.out.println("Data successfully inserted for: " + name);
+             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+             PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+
+            // 检查是否已经存在相同的记录
+            checkStmt.setString(1, name);
+            checkStmt.setInt(2, score);
+            checkStmt.setInt(3, level);
+            checkStmt.setString(4, time);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next() && rs.getInt(1) == 0) {
+                // 如果没有相同记录，则插入
+                insertStmt.setString(1, name);
+                insertStmt.setInt(2, score);
+                insertStmt.setInt(3, level);
+                insertStmt.setString(4, time);
+                insertStmt.executeUpdate();
+                System.out.println("Data successfully inserted for: " + name);
+            } else {
+                System.out.println("Duplicate record found. Insertion skipped for: " + name);
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public void main(String[] args) throws SQLException, ClassNotFoundException {
-        connect();
-        putScore("Bob", 1000, 13);
-        getScores().forEach(map->{
+    public static void main(String[] args) throws SQLException, ClassNotFoundException {
+        Database db = new Database("jdbc:sqlite:data/battleJoker.db");
+        db.connect();
+        db.putScore("Bob", 1000, 13);
+        db.putScore("Bob", 1000, 13); // 这次应该跳过
+        db.getScores().forEach(map -> {
             System.out.println(map.get("name"));
         });
+        db.disconnect();
     }
 }
