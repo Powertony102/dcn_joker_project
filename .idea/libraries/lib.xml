@@ -4,7 +4,9 @@
       <root url="file://$PATH_TO_FX$" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="file://$PATH_TO_FX$" />
+    </SOURCES>
     <jarDirectory url="file://$PATH_TO_FX$" recursive="false" />
   </library>
 </component>

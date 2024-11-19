@@ -3,23 +3,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Database {
-    final static String url = "jdbc:sqlite:data/battleJoker.db";
-    static Connection conn;
+    private String url = "";
+    private Connection conn = null;
 
-    public static void connect() throws SQLException, ClassNotFoundException {
-        if (conn == null) {
-//            Class.forName("org.sqlite.JDBC");
-            conn = DriverManager.getConnection(url);
-        }
-
+    public Database(String url) {
+        this.url = url;
     }
 
-    public static void disconnect() throws SQLException {
-        if (conn != null)
+    public void connect() throws SQLException, ClassNotFoundException {
+        conn = DriverManager.getConnection(url);
+        System.out.println("Connected to the database:" + url);
+    }
+
+    public void disconnect() throws SQLException {
+        if (conn != null && !conn.isClosed()) {
             conn.close();
+            System.out.println("Database connection closed.");
+        }
     }
 
-    public static ArrayList<HashMap<String, String>> getScores() throws SQLException {
+    public ArrayList<HashMap<String, String>> getScores() throws SQLException {
         String sql = "SELECT * FROM scores ORDER BY score DESC LIMIT 10";
         ArrayList<HashMap<String, String>> data = new ArrayList<>();
         Statement statement = conn.createStatement();
@@ -35,13 +38,36 @@ public class Database {
         return data;
     }
 
-    public static void putScore(String name, int score, int level) throws SQLException {
-        String sql = String.format("INSERT INTO scores ('name', 'score', 'level', 'time') VALUES ('%s', %d, %d, datetime('now'))", name, score, level);
-        Statement statement = conn.createStatement();
-        statement.execute(sql);
+    public void putScore(String name, int score, int level) {
+        String sql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, datetime('now'))";
+        try (Connection conn = DriverManager.getConnection(url);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setInt(2, score);
+            pstmt.setInt(3, level);
+            pstmt.executeUpdate();
+            System.out.println("Data successfully inserted for: " + name);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
-    public static void main(String[] args) throws SQLException, ClassNotFoundException {
+    public void putScore(String name, int score, int level, String time) {
+        String sql = "INSERT INTO scores ('name', 'score', 'level', 'time') VALUES (?, ?, ?, ?)";
+        try (Connection conn = DriverManager.getConnection(url);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setInt(2, score);
+            pstmt.setInt(3, level);
+            pstmt.setString(4, time);
+            pstmt.executeUpdate();
+            System.out.println("Data successfully inserted for: " + name);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void main(String[] args) throws SQLException, ClassNotFoundException {
         connect();
         putScore("Bob", 1000, 13);
         getScores().forEach(map->{

@@ -24,13 +24,13 @@ public class BattleJoker extends Application {
         }
     }
 
-    @Override
-    public void stop() {
-        try {
-            Database.disconnect();
-        } catch (SQLException ignored) {
-        }
-    }
+//    @Override
+//    public void stop() {
+//        try {
+//            Database.disconnect();
+//        } catch (SQLException ignored) {
+//        }
+//    }
 
     public static void main(String[] args) {
         System.setErr(new FilteredStream(System.err));  // All JavaFX'es version warnings will not be displayed

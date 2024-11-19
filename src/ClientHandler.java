@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 class ClientHandler implements Runnable {
     private final Socket socket;
@@ -50,7 +51,7 @@ class ClientHandler implements Runnable {
                     this.waitDecision = 1;
                 } else if (clientResponse.equals("leave")) {
                     this.waitDecision = 0;
-//                    closeConnection();
+                    closeConnection();
                 } else if (clientResponse.startsWith("name:")) {
                     setPlayerName(clientResponse.substring(5));
                 } else if (clientResponse.startsWith("score")) {
@@ -96,6 +97,7 @@ class ClientHandler implements Runnable {
 
     public void sendGameState(String gameState) {
         try {
+            out.flush();
             out.writeUTF(gameState);
             out.flush();
         } catch (IOException e) {

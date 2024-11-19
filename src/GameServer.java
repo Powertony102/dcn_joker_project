@@ -1,11 +1,9 @@
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 
 
 public class GameServer {
@@ -15,8 +13,9 @@ public class GameServer {
     private int currentPlayer = 0;
     private final int MAX_PLAYERS = 4;
     private boolean gameStatus = false;
+    private Database database = new Database("jdbc:sqlite:data/battleJoker.db");
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException, ClassNotFoundException {
         new GameServer().startServer();
     }
 
@@ -35,7 +34,7 @@ public class GameServer {
         }
         recordGameScore(winnerName, winnerScore, winnerLevel);
         System.out.println(winnerName + " " + winnerScore + " " + winnerLevel + "\n");
-        endGame();
+//        endGame();
     }
 
     public synchronized void handleClientMove(String move, ClientHandler clientHandler) throws IOException, SQLException, ClassNotFoundException {
@@ -74,17 +73,43 @@ public class GameServer {
         return stateBuilder.toString();
     }
 
-    public void recordGameScore(String playerName, int score, int level) throws SQLException, ClassNotFoundException {
-        Database.connect();
+    public void updateClientDataBase() throws SQLException, ClassNotFoundException, IOException {
+        this.database.connect();
+        ArrayList<HashMap<String, String>> data = null;
         try {
-            Database.putScore(playerName, score, level);
+            data = this.database.getScores();
+        } catch (Exception e) {
+            System.out.println("Cannot get scores from the database");
+        }
+
+        this.database.disconnect();
+        if (data != null) {
+            System.out.println(data.size());
+        }
+        for (ClientHandler client: clients) {
+            for (int i = 0; i < data.size(); i++) {
+                PlayerScore playerScore = new PlayerScore("", 0, 1, "");
+                playerScore.initializationFromDatabase(data.get(i));
+                client.sendMessage("updateDatabase");
+                client.sendMessage(playerScore.toString());
+            }
+        }
+        endGame();
+    }
+
+    public void recordGameScore(String playerName, int score, int level) throws SQLException, ClassNotFoundException, IOException {
+        try {
+            database.connect();
+            this.database.putScore(playerName, score, level);
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        Database.disconnect();
+        System.out.println("record is okay");
+        updateClientDataBase();
     }
 
-    public void startServer() {
+    public void startServer() throws SQLException, ClassNotFoundException {
+        this.database.connect();
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server is listening on port " + PORT);
 
@@ -190,17 +215,9 @@ public class GameServer {
         System.out.println("Engine Status: " + gameEngine.isGameOver());
         System.out.println("Current game has ended.");
         for (ClientHandler client : clients) {
-            client.sendMessage("Game Over!");
+            client.sendMessage("Game over");
+            client.closeConnection();
         }
-
-        clients.clear();
-        for (int i = 0; i < MAX_PLAYERS && !waitingQueue.isEmpty(); ++ i) {
-            clients.add(waitingQueue.poll());
-        }
-
-        if (!clients.isEmpty()) {
-            this.gameStatus = true;
-            startGame();
-        }
+        System.exit(0);
     }
 }

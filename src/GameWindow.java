@@ -20,10 +20,17 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.concurrent.TimeUnit;
 
 public class GameWindow {
     @FXML
@@ -61,7 +68,9 @@ public class GameWindow {
     final Image[] images = new Image[symbols.length];
     final GameEngine gameEngine = GameEngine.getInstance();
 
+    private ScoreboardWindow scoreboardWindow;
     private final GameEngine clientEngine = new GameEngine();
+    private Database database = null;
 
     // Support data communication with the network
     private Socket socket;
@@ -70,7 +79,7 @@ public class GameWindow {
 
     private boolean isGameOver = false;
 
-    public GameWindow(Stage stage, String serverIP, int serverPort) throws IOException {
+    public GameWindow(Stage stage, String serverIP, int serverPort) throws IOException, SQLException, ClassNotFoundException {
         connectToServer(serverIP, serverPort);
         loadImages();
 
@@ -113,7 +122,7 @@ public class GameWindow {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             // 关闭网络连接
-            sendMessageToServer("closeWindow");
+//            sendMessageToServer("closeWindow");
             // 关闭窗口
             System.out.println("Bye bye");
             Platform.exit();
@@ -156,6 +165,9 @@ public class GameWindow {
         try {
             dout.writeUTF(message);
             dout.flush();
+        } catch (SocketException e) {
+            System.out.println("Socket has been closed, cannot send message: " + message);
+            // 可以考虑在此重新连接或者向用户报告连接中断
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -172,6 +184,8 @@ public class GameWindow {
 
     private void initCanvas() {
         canvas.setOnKeyPressed(event -> {
+            if (isGameOver == true)
+                return;
             try {
                 String direction = event.getCode().toString();
                 this.clientEngine.moveMerge(direction);
@@ -186,21 +200,15 @@ public class GameWindow {
             @Override
             public void handle(long now) {
                 render();
-//                System.out.println(gameEngine.isGameOver());
                 if (isGameOver) {
-//                if (gameEngine.isGameOver()) {
                     System.out.println("Game Over!");
                     animationTimer.stop();
 
                     Platform.runLater(() -> {
+                        System.out.println("Show Scoreboard");
                         try {
-                            System.out.println("Show Scoreboard");
-                            new ScoreboardWindow();
-                        } catch (IOException ex) {
-                            throw new RuntimeException(ex);
-                        } catch (SQLException e) {
-                            throw new RuntimeException(e);
-                        } catch (ClassNotFoundException e) {
+                            scoreboardWindow = new ScoreboardWindow(database);
+                        } catch (SQLException | ClassNotFoundException | IOException e) {
                             throw new RuntimeException(e);
                         }
                     });
@@ -259,9 +267,37 @@ public class GameWindow {
         render();
     }
 
-    public void setName(String name) throws IOException {
+    public void setName(String name) throws IOException, SQLException, ClassNotFoundException {
         nameLabel.setText(name);
         sendMessageToServer("name:" + name);
+        String url = "jdbc:sqlite:data/" + name + "_battleJoker.db";
+        this.database = new Database(url);
+        createDatase(url);
+    }
+
+    private void createDatase(String url) throws SQLException, IOException, ClassNotFoundException {
+        // 连接数据库，如果数据库不存在则创建新文件
+        try (Connection conn = DriverManager.getConnection(url)) {
+            if (conn != null) {
+                System.out.println("A new database has been created.");
+
+                // 创建一个示例表
+                String sql = "CREATE TABLE IF NOT EXISTS scores (\n"
+                        + "    id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                        + "    name TEXT NOT NULL,\n"
+                        + "    score INTEGER NOT NULL,\n"
+                        + "    level INTEGER NOT NULL,\n"
+                        + "    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n"
+                        + ");";
+
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(sql);
+                    System.out.println("Table 'scores' has been created.");
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     private void updateGameState(String gameState) {
@@ -284,7 +320,7 @@ public class GameWindow {
         try {
             while (true) {
                 String serverResponse = din.readUTF();
-//                System.out.println(serverResponse);
+                System.out.println(serverResponse);
                 if (serverResponse.startsWith("You are the first player")) {
                     showDecisionDialog("Start Game", "Do you want to start the game now, or wait for more players?");
                 } else if (serverResponse.startsWith("The game is full")) {
@@ -301,6 +337,15 @@ public class GameWindow {
                     showAlert("Game Start", "The game is starting with all players. Get ready!");
                 } else if (serverResponse.startsWith("Currently, there are")) {
                     showDynamicYesNoDialog("Update on Players", serverResponse);
+                } else if (serverResponse.equals("updateDatabase")) {
+                    String order = din.readUTF();
+                    Platform.runLater(() -> {
+                        try {
+                            updateDatabase(order);
+                        } catch (IOException | SQLException | ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 } else if (serverResponse.startsWith("PersonalScore")) {
                     Platform.runLater(() -> {
                         try {
@@ -309,13 +354,27 @@ public class GameWindow {
                             throw new RuntimeException(e);
                         }
                     });
-                } else if (serverResponse.startsWith("Game Over")) {
-                    this.isGameOver = true;
-                } else {
+                } else if (serverResponse.startsWith("Game over")) {
+                    Platform.runLater(() -> this.isGameOver = true);
+                } else if (serverResponse.startsWith("board")) {
                     Platform.runLater(() -> updateGameState(serverResponse));
+                } else {
+                    continue;
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateDatabase(String response) throws IOException, SQLException, ClassNotFoundException {
+        this.database.connect();
+        PlayerScore score = new PlayerScore("", 0, 1, "");
+        System.out.println(response);
+        score.initializationFromString(response);
+        try {
+            this.database.putScore(score.name, score.score, score.level, score.time);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -395,6 +454,9 @@ public class GameWindow {
                 new Thread(() -> {
                     try {
                         listenToServer();
+                    } catch (SocketException e) {
+                        System.out.println("Connection has been closed by server.");
+                        // 可以尝试重新连接或者给用户提示连接断开
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

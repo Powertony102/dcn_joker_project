@@ -18,11 +18,14 @@ public class ScoreboardWindow {
     @FXML
     ListView<String> scoreList;
 
-    public ScoreboardWindow() throws IOException, SQLException, ClassNotFoundException {
+    protected Database database;
+
+    public ScoreboardWindow(Database database) throws IOException, SQLException, ClassNotFoundException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("scoreUI.fxml"));
         loader.setController(this);
         Parent root = loader.load();
         Scene scene = new Scene(root);
+        this.database = database;
 
         stage = new Stage();
         stage.setScene(scene);
@@ -30,10 +33,10 @@ public class ScoreboardWindow {
         stage.setMinWidth(scene.getWidth());
         stage.setMinHeight(scene.getHeight());
 
+        this.stage.show();
+
         setFont(14);
         updateList();
-
-        stage.showAndWait();
     }
 
     private void setFont(int fontSize) {
@@ -52,10 +55,10 @@ public class ScoreboardWindow {
     }
 
     private void updateList() throws SQLException, ClassNotFoundException {
-        Database.connect();
+        this.database.connect();
         try {
             ObservableList<String> items = FXCollections.observableArrayList();
-            Database.getScores().forEach(data->{
+            this.database.getScores().forEach(data->{
                 String scoreStr = String.format("%s (%s)", data.get("score"), data.get("level"));
                 items.add(String.format("%10s | %10s | %s", data.get("name"), scoreStr, data.get("time").substring(0, 16)));
             });
@@ -63,6 +66,6 @@ public class ScoreboardWindow {
         } catch(Exception ex) {
             ex.printStackTrace();
         }
-        Database.disconnect();
+        this.database.disconnect();
     }
 }
