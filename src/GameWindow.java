@@ -272,10 +272,10 @@ public class GameWindow {
         sendMessageToServer("name:" + name);
         String url = "jdbc:sqlite:data/" + name + "_battleJoker.db";
         this.database = new Database(url);
-        createDatase(url);
+        createDatabase(url);
     }
 
-    private void createDatase(String url) throws SQLException, IOException, ClassNotFoundException {
+    private void createDatabase(String url) throws SQLException, IOException, ClassNotFoundException {
         // 连接数据库，如果数据库不存在则创建新文件
         try (Connection conn = DriverManager.getConnection(url)) {
             if (conn != null) {

@@ -109,7 +109,6 @@ public class scoreClientController {
         alert.showAndWait();
     }
 
-    // 定义 ScoreData 类来保存每一行数据
     public static class ScoreData {
         private final SimpleStringProperty name;
         private final SimpleStringProperty score;
