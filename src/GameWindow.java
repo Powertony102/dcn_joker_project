@@ -88,12 +88,38 @@ public class GameWindow {
 
         stage.widthProperty().addListener(w -> onWidthChangedWindow(((ReadOnlyDoubleProperty) w).getValue()));
         stage.heightProperty().addListener(h -> onHeightChangedWindow(((ReadOnlyDoubleProperty) h).getValue()));
-        stage.setOnCloseRequest(event -> quit());
+        stage.setOnCloseRequest(event -> {
+            event.consume(); // 阻止默认的关闭行为，执行自定义逻辑
+            try {
+                quit();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
         stage.show();
         initCanvas();
 
         gameStart();
+    }
+
+    private void quit() throws IOException {
+        // 弹出确认框，确保用户是要退出
+        Alert alert = new Alert(AlertType.CONFIRMATION);
+        alert.setTitle("Exit Game");
+        alert.setHeaderText(null);
+        alert.setContentText("Are you sure you want to exit the game?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            // 关闭网络连接
+            sendMessageToServer("closeWindow");
+            // 关闭窗口
+            System.out.println("Bye bye");
+            Platform.exit();
+            stage.close();
+        }
+        System.exit(0);
     }
 
     public void showDecisionDialog(String title, String message) throws IOException {
@@ -103,20 +129,20 @@ public class GameWindow {
             alert.setHeaderText(null);
             alert.setContentText(message);
 
-            ButtonType yesButton = new ButtonType("Yes");
-            ButtonType noButton = new ButtonType("No");
+            ButtonType yesButton = new ButtonType("Wait");
+            ButtonType noButton = new ButtonType("Start");
             alert.getButtonTypes().setAll(yesButton, noButton);
 
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == yesButton) {
                 try {
-                    sendMessageToServer("start_game");
+                    sendMessageToServer("wait_for_others");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             } else {
                 try {
-                    sendMessageToServer("wait_for_others");
+                    sendMessageToServer("start_game");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -233,12 +259,6 @@ public class GameWindow {
         render();
     }
 
-    void quit() {
-        System.out.println("Bye bye");
-        stage.close();
-        System.exit(0);
-    }
-
     public void setName(String name) throws IOException {
         nameLabel.setText(name);
         sendMessageToServer("name:" + name);
@@ -264,6 +284,7 @@ public class GameWindow {
         try {
             while (true) {
                 String serverResponse = din.readUTF();
+//                System.out.println(serverResponse);
                 if (serverResponse.startsWith("You are the first player")) {
                     showDecisionDialog("Start Game", "Do you want to start the game now, or wait for more players?");
                 } else if (serverResponse.startsWith("The game is full")) {

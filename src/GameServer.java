@@ -11,11 +11,10 @@ import java.util.Queue;
 public class GameServer {
     private static final int PORT = 39995;
     private final List<ClientHandler> clients = new ArrayList<>();
-
-
-
-    private final Queue<ClientHandler> waitingClients = new LinkedList<>();
+    private final Queue<ClientHandler> waitingQueue = new LinkedList<>();
     private int currentPlayer = 0;
+    private final int MAX_PLAYERS = 4;
+    private boolean gameStatus = false;
 
     public static void main(String[] args) {
         new GameServer().startServer();
@@ -46,7 +45,6 @@ public class GameServer {
                 recordResultInDataBase();
                 return;
             }
-
             broadcastGameState();
 
             clientHandler.decreaseMoves();
@@ -92,30 +90,48 @@ public class GameServer {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected from " + clientSocket.getInetAddress().getHostAddress());
-
-                if (clients.size() < 4) {
-                    ClientHandler clientHandler = new ClientHandler(clientSocket, this);
-                    clients.add(clientHandler);
-                    new Thread(clientHandler).start();
-
-                    if (clients.size() == 1) {
-                        clientHandler.sendMessage("You are the first player. Do you want to start now or wait for others?");
-                    } else if (clients.size() >= 2 && clients.size() < 4) {
-                        notifyFirstPlayerOfCurrentPlayers();
-                    }
-
-                    if (clients.size() == 4) {
-                        startGame();
-                    }
-                } else {
-                    ClientHandler clientHandler = new ClientHandler(clientSocket, this);
-                    new Thread(clientHandler).start();
-                    clientHandler.sendMessage("The game is full. Would you like to wait for the next game or leave?");
-                }
+                ClientHandler clientHandler = new ClientHandler(clientSocket, this);
+                new Thread(clientHandler).start();
+                handleNewPlayer(clientHandler);
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void firstPlayerDecision(ClientHandler clientHandler) throws IOException {
+        clientHandler.sendMessage("You are the first player. Do you want to start now or wait for others?");
+    }
+
+    private void handleNewPlayer(ClientHandler clientHandler) throws IOException {
+        if (clients.size() < MAX_PLAYERS || !this.gameStatus) {
+            clients.add(clientHandler);
+
+            // 如果是第一个玩家，赋予是否立即开始的选择权
+            if (clients.size() == 1) {
+                firstPlayerDecision(clientHandler);
+            } else if (clients.size() >= 2 && clients.size() < MAX_PLAYERS) {
+                notifyFirstPlayerOfCurrentPlayers();
+            }
+
+            // 如果玩家人数达到 4 人，自动开始游戏
+            if (clients.size() == MAX_PLAYERS) {
+                startGame();
+            }
+        } else {
+            // 第 5 名及以后玩家的处理逻辑
+            clientHandler.sendMessage("The game is full. Would you like to wait for the next game or leave?");
+            int wantsToWait = -1;
+            while (clientHandler.isWaitDecision() == -1) {
+                wantsToWait = clientHandler.isWaitDecision();
+            }
+
+            if (wantsToWait == 1) {
+                waitingQueue.add(clientHandler);
+                clientHandler.sendMessage("You have been added to the waiting queue for the next game.");
+            } else if (wantsToWait == 0) {
+                clientHandler.closeConnection();
+            }
         }
     }
 
@@ -128,6 +144,7 @@ public class GameServer {
     }
 
     protected void startGame() throws IOException{
+        this.gameStatus = true;
         System.out.println("Game is starting now!");
         for (ClientHandler clientHandler : clients) {
             clientHandler.sendMessage("Game starts!");
@@ -160,6 +177,7 @@ public class GameServer {
 
     public void broadcastGameState() throws IOException {
         String gameState = generateGameState();
+        System.out.println("Player number:" + clients.size());
         for (ClientHandler client : clients) {
             client.sendGameState(gameState);
         }
@@ -167,8 +185,8 @@ public class GameServer {
         clients.get(currentPlayer).sendPersonalScore();
     }
 
-
     public void endGame() throws IOException {
+        this.gameStatus = false;
         System.out.println("Engine Status: " + gameEngine.isGameOver());
         System.out.println("Current game has ended.");
         for (ClientHandler client : clients) {
@@ -176,18 +194,13 @@ public class GameServer {
         }
 
         clients.clear();
-
-        int counter = 0;
-        while (!waitingClients.isEmpty() && counter < 4) {
-            ClientHandler newPlayer = waitingClients.poll();
-            ++ counter;
-            clients.add(newPlayer);
-            newPlayer.sendMessage("You have been moved to the next game. Get ready!");
+        for (int i = 0; i < MAX_PLAYERS && !waitingQueue.isEmpty(); ++ i) {
+            clients.add(waitingQueue.poll());
         }
-    }
 
-    public void addToWaitingQueue(ClientHandler clientHandler) throws IOException {
-        waitingClients.add(clientHandler);
-        clientHandler.sendMessage("You have been added to the waiting queue for the next game.");
+        if (!clients.isEmpty()) {
+            this.gameStatus = true;
+            startGame();
+        }
     }
 }

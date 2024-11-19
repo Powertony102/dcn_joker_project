@@ -11,8 +11,7 @@ class ClientHandler implements Runnable {
     private DataInputStream in;
     private DataOutputStream out;
     private int remainingMoves = 4;
-
-    private final GameEngine clientEngine;
+    private int waitDecision = -1;
 
     private String playerName = "";
 
@@ -25,7 +24,6 @@ class ClientHandler implements Runnable {
     public ClientHandler(Socket socket, GameServer server) {
         this.socket = socket;
         this.server = server;
-        this.clientEngine = new GameEngine();
 
         try {
             in = new DataInputStream(socket.getInputStream());
@@ -49,14 +47,16 @@ class ClientHandler implements Runnable {
                 } else if (clientResponse.equals("wait_for_others")) {
                     System.out.println("The first player decided to wait for others to join.");
                 } else if (clientResponse.equals("wait_next_game")) {
-                    server.addToWaitingQueue(this);
+                    this.waitDecision = 1;
                 } else if (clientResponse.equals("leave")) {
-                    socket.close();
-                    return;
+                    this.waitDecision = 0;
+//                    closeConnection();
                 } else if (clientResponse.startsWith("name:")) {
                     setPlayerName(clientResponse.substring(5));
                 } else if (clientResponse.startsWith("score")) {
                     updatePersonalScore(clientResponse);
+                } else if (clientResponse.equals("closeWindow")) {
+                    closeConnection();
                 } else {
                     server.handleClientMove(clientResponse, this);
                 }
@@ -130,8 +130,29 @@ class ClientHandler implements Runnable {
         return result;
     }
 
+    public int isWaitDecision() {
+        return this.waitDecision;
+    }
+
     public void sendPersonalScore() throws IOException {
         out.writeUTF("PersonalScore");
         out.flush();
+    }
+
+    public void closeConnection() {
+        try {
+            if (in != null) {
+                in.close();  // 关闭输入流
+            }
+            if (out != null) {
+                out.close();  // 关闭输出流
+            }
+            if (socket != null) {
+                socket.close();  // 关闭 socket 连接
+            }
+            System.out.println("Connection closed for player: " + playerName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
