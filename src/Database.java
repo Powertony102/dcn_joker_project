@@ -76,7 +76,6 @@ public class Database {
              PreparedStatement checkStmt = conn.prepareStatement(checkSql);
              PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
 
-            // 检查是否已经存在相同的记录
             checkStmt.setString(1, name);
             checkStmt.setInt(2, score);
             checkStmt.setInt(3, level);
@@ -84,7 +83,6 @@ public class Database {
             ResultSet rs = checkStmt.executeQuery();
 
             if (rs.next() && rs.getInt(1) == 0) {
-                // 如果没有相同记录，则插入
                 insertStmt.setString(1, name);
                 insertStmt.setInt(2, score);
                 insertStmt.setInt(3, level);

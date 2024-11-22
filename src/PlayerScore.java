@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.HashMap;
 
 public class PlayerScore {
@@ -10,6 +9,13 @@ public class PlayerScore {
         this.score = score;
         this.level = level;
         this.time = time;
+    }
+
+    public PlayerScore(String name, int score, int level) {
+        this.name = name;
+        this.score = score;
+        this.level = level;
+        this.time = "null";
     }
 
     public String toString() {

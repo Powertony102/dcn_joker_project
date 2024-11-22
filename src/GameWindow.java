@@ -98,7 +98,7 @@ public class GameWindow {
         stage.widthProperty().addListener(w -> onWidthChangedWindow(((ReadOnlyDoubleProperty) w).getValue()));
         stage.heightProperty().addListener(h -> onHeightChangedWindow(((ReadOnlyDoubleProperty) h).getValue()));
         stage.setOnCloseRequest(event -> {
-            event.consume(); // 阻止默认的关闭行为，执行自定义逻辑
+            event.consume();
             try {
                 quit();
             } catch (IOException e) {
@@ -356,6 +356,7 @@ public class GameWindow {
                     });
                 } else if (serverResponse.startsWith("Game over")) {
                     Platform.runLater(() -> this.isGameOver = true);
+                    Platform.runLater(() -> showRoundScoreBoard(serverResponse));
                 } else if (serverResponse.startsWith("board")) {
                     Platform.runLater(() -> updateGameState(serverResponse));
                 } else {
@@ -365,6 +366,32 @@ public class GameWindow {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void showRoundScoreBoard(String result) {
+        String[] results = result.split(";");
+        Platform.runLater(() -> {
+            Alert alert = new Alert(AlertType.INFORMATION);
+            alert.setTitle("Score Board of Current Round");
+            alert.setHeaderText("Game Scores");
+
+            StringBuilder content = new StringBuilder("Scores:\n");
+            for (int i = 1; i < results.length; i++) {
+                PlayerScore cur = new PlayerScore("Anonymous", 1, 0);
+                cur.initializationFromString(results[i]);
+
+                if (i == 1) {
+                    content.append("The winner is: ").append(cur.name).append(" with a score of: ").append(cur.score).append("\n\n");
+                    content.append("Other Players' Scores:\n");
+                } else {
+                    content.append("Player: ").append(cur.name).append(" with a score of: ").append(cur.score).append("\n\n");
+                }
+
+            }
+
+            alert.setContentText(content.toString());
+            alert.showAndWait();
+        });
     }
 
     private void updateDatabase(String response) throws IOException, SQLException, ClassNotFoundException {

@@ -10,6 +10,7 @@ public class GameServer {
     private static final int PORT = 39995;
     private final List<ClientHandler> clients = new ArrayList<>();
     private final Queue<ClientHandler> waitingQueue = new LinkedList<>();
+    private List<PlayerScore> roundResult = new ArrayList<>();
     private int currentPlayer = 0;
     private final int MAX_PLAYERS = 4;
     private boolean gameStatus = false;
@@ -26,15 +27,22 @@ public class GameServer {
         int winnerScore = 0, winnerLevel = 1;
         for (ClientHandler clientHandler: clients) {
             ArrayList<Integer> playerResult = clientHandler.getResult();
+            PlayerScore currentResult = new PlayerScore(clientHandler.getPlayerName(), playerResult.get(0), playerResult.get(1));
+            roundResult.add(currentResult);
             if (playerResult.get(0) > winnerScore) {
-                winnerScore = playerResult.get(0);
-                winnerLevel = playerResult.get(1);
-                winnerName = clientHandler.getPlayerName();
+                winnerScore = currentResult.score;
+                winnerLevel = currentResult.level;
+                winnerName = currentResult.name;
             }
         }
+        roundResult.sort(new Comparator<PlayerScore>() {
+            @Override
+            public int compare(PlayerScore o1, PlayerScore o2) {
+                return Integer.compare(o1.score, o2.score);
+            }
+        });
         recordGameScore(winnerName, winnerScore, winnerLevel);
         System.out.println(winnerName + " " + winnerScore + " " + winnerLevel + "\n");
-//        endGame();
     }
 
     public synchronized void handleClientMove(String move, ClientHandler clientHandler) throws IOException, SQLException, ClassNotFoundException {
@@ -214,8 +222,13 @@ public class GameServer {
         this.gameStatus = false;
         System.out.println("Engine Status: " + gameEngine.isGameOver());
         System.out.println("Current game has ended.");
+
+        StringBuilder roundResultString = new StringBuilder("Game over;");
+        for (PlayerScore playerScore : roundResult) {
+            roundResultString.append(playerScore.toString() + ";");
+        }
         for (ClientHandler client : clients) {
-            client.sendMessage("Game over");
+            client.sendMessage(roundResultString.toString());
             client.closeConnection();
         }
         System.exit(0);
