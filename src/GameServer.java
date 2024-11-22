@@ -38,7 +38,7 @@ public class GameServer {
         roundResult.sort(new Comparator<PlayerScore>() {
             @Override
             public int compare(PlayerScore o1, PlayerScore o2) {
-                return Integer.compare(o1.score, o2.score);
+                return ~(Integer.compare(o1.score, o2.score));
             }
         });
         recordGameScore(winnerName, winnerScore, winnerLevel);
